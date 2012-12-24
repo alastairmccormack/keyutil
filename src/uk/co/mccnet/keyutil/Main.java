@@ -13,6 +13,10 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 
+/**
+ * Utility to add a PEM certificates from a CA bundle file into a new or existing Java Keystore file (JKS)
+ *
+ */
 public class Main {
 
 	private static Logger logger = Logger.getLogger(Main.class.getCanonicalName());
@@ -24,10 +28,8 @@ public class Main {
 	
 	@SuppressWarnings("static-access")
 	public static void main(String[] args) throws Exception {
-		
-		
+
 		logger.setLevel(Level.INFO);
-		
 		
 		Options options = new Options();
 		options.addOption("h", "help", false, "Show help");
@@ -84,8 +86,6 @@ public class Main {
 		PEMFile pf = new PEMFile(pemFile);
 		JKSKeyStoreUtil jksKeyStoreUtil = JKSKeyStoreUtil.newKeyStore(new File(line.getOptionValue("keystore-file")), line.getOptionValue("password"));
 		jksKeyStoreUtil.importPEMFile(pf);
-		
-		
 	}
 	
 	private static void printHelp(Options options) {
