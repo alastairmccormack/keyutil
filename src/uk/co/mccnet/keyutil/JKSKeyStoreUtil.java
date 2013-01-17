@@ -34,6 +34,7 @@ public class JKSKeyStoreUtil {
 	private static Logger logger = Logger.getLogger(Main.class.getName());
 	
 	/**
+	 * Creates a new JKSKeyStoreUtil instance. 
 	 * @throws NoSuchAlgorithmException
 	 * @throws CertificateException
 	 * @throws IOException
@@ -52,6 +53,10 @@ public class JKSKeyStoreUtil {
 	
 	
 	/**
+	 * Creates a new JKSKeyStoreUtil from an existing JKS file
+	 * 
+	 * @param file								existing JKS file
+	 * @param password							password to open JKS file
 	 * @throws NoSuchAlgorithmException
 	 * @throws CertificateException
 	 * @throws IOException

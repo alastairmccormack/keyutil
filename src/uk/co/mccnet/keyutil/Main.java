@@ -56,8 +56,8 @@ public class Main {
 		
 		OptionGroup ogMode = new OptionGroup();
 		ogMode.setRequired(true);
-		ogMode.addOption(new Option("l", "list", false, "List keys"));
-		ogMode.addOption(new Option("i", "import", false, "Import keys"));
+		ogMode.addOption(new Option("l", "list", false, "List cert mode"));
+		ogMode.addOption(new Option("i", "import", false, "Import certs mode"));
 		options.addOptionGroup(ogMode);
 		
 		Option pemFileOption = new Option("e", "import-pem-file", true, "PEM import filenames");
@@ -65,7 +65,7 @@ public class Main {
 		pemFileOption.setArgName("PEM_file [<PEM_files>..]");
 		options.addOption(pemFileOption);
 		
-		Option jksFileOption = new Option("j", "import-jks-file", true, "JKS import filename and password");
+		Option jksFileOption = new Option("j", "import-jks-file", true, "JKS import filename using given password");
 		jksFileOption.setArgs(Option.UNLIMITED_VALUES);
 		jksFileOption.setArgName("JKS_file:password [<JKS_file:password>..]");
 		options.addOption(jksFileOption);
