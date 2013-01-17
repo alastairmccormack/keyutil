@@ -37,17 +37,20 @@ public class Main {
 		
 		Options options = new Options();
 		options.addOption("h", "help", false, "Show help");
-		options.addOption("F", "force", false, "Force actions"); 
-		options.addOption("n", "new", false, "Create new Java Keystore");
+		options.addOption("F", "force-new-overwrite", false, "force overwrite of existing keystore"); 
 		
 		Option passwordOption = new Option("p", "password", true, "Keystore (secret) password");
 		passwordOption.setRequired(true);
 		options.addOption(passwordOption);
 		
-		Option fileOption = new Option("f", "keystore-file", true, "Output keystore filename");
-		fileOption.setRequired(true);
-		fileOption.setArgName("keystore");
-		options.addOption(fileOption);
+		OptionGroup ogDestination = new OptionGroup();
+		Option newDestinationFileOption = new Option("n", "new-keystore", true, "Append to new output JSK keystore filename");
+		newDestinationFileOption.setArgName("jks_file");
+		Option existingFileOption = new Option("f", "keystore-file", true, "Append to existing output JKS keystore filename");
+		existingFileOption.setArgName("jks_file");
+		ogDestination.addOption(newDestinationFileOption);
+		ogDestination.addOption(existingFileOption);
+		options.addOptionGroup(ogDestination);
 		
 		OptionGroup ogLogging = new OptionGroup();
 		ogLogging.addOption(new Option("q", "quiet", false, "Quiet"));
@@ -58,6 +61,7 @@ public class Main {
 		ogMode.setRequired(true);
 		ogMode.addOption(new Option("l", "list", false, "List cert mode"));
 		ogMode.addOption(new Option("i", "import", false, "Import certs mode"));
+		ogMode.addOption(new Option("h", "help", false, "Show help"));
 		options.addOptionGroup(ogMode);
 		
 		Option pemFileOption = new Option("e", "import-pem-file", true, "PEM import filenames");
@@ -97,19 +101,24 @@ public class Main {
 	    } else if (line.hasOption("debug")) {
 	    	logger.setLevel(Level.FINEST);
 		}   
-	    	    
-	    File keyStore = new File(line.getOptionValue("keystore-file"));
-	    String password = line.getOptionValue("password");
+	   
+	    File keyStore;
 	    
-	    if ( line.hasOption("new") && keyStore.exists() && ! line.hasOption("force")) {
-	    	throw new Exception("New Keystore - File already exists. Use --force to overwrite");
-	    } else if (! line.hasOption("new") && ! keyStore.exists()) {
-			throw new Exception(String.format("%s does not exist. Create it with --new.", keyStore.getPath()));
-		}
+	    if ( line.hasOption("new-keystore") ) {
+	    	keyStore = new File(line.getOptionValue("new-keystore"));
+	    	if ( keyStore.exists() && ! line.hasOption("force-new-overwrite") ) {
+	    		throw new Exception("New Keystore - File already exists. Use --force-new-overwrite to overwrite");
+	    	}
+	    } else {
+	    	// Option parsing should ensure line.hasOption("keystore-file") == True
+	    	keyStore = new File(line.getOptionValue("keystore-file") );
+	    }
+	    
+	    String password = line.getOptionValue("password");
 	    
 		JKSKeyStoreUtil jksKeyStoreUtil;
 		
-		if (line.hasOption("new") ) {
+		if (line.hasOption("new-keystore") ) {
 			jksKeyStoreUtil = new JKSKeyStoreUtil();
 		} else {
 			// load existing

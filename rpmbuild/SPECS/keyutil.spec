@@ -1,6 +1,6 @@
 Name:           keyutil
-Version:        0.3.0
-Release:        2
+Version:        0.4.0
+Release:        1
 Summary:        Java Key Utility
 Group:          Applications/System
 License:        BSD
