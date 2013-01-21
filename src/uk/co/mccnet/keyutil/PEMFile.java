@@ -78,11 +78,7 @@ public class PEMFile {
 			pemFileBR.close();
 		}
 		
-		if (result.isEmpty()) {
-			return null;
-		} else {
-			return result;
-		}
+		return result;
 	}
 
 }
