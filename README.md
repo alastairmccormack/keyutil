@@ -1,4 +1,4 @@
-#keyutil#
+keyutil
 =======
 
 *- A sensible Java key management tool for normal people*
