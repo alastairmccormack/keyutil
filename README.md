@@ -13,6 +13,10 @@ java -jar keyutil.jar --new-keystore trustStore.jks --password <secret> \
 --import-pem-file /etc/pki/tls/certs/ca-bundle.trust.crt /opt/myapp/mycerts.pem --import-jks-file /opt/myotherapp/trustStore.jks:mysecret
 ```
 
+# Download
+
+https://github.com/use-sparingly/keyutil/releases/download/0.4.0/keyutil-0.4.0.jar
+
 ## Help
 
 ```
