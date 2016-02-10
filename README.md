@@ -39,7 +39,7 @@ usage: keyutil [-d | -q] [-e <PEM_file [<PEM_files>..]>] [-f <jks_file> | -n <jk
 ```
 
 # Why?
-Redhat uses a multi-part PEM file (/etc/pki/tls/certs/ca-bundle.crt). Keyutil can be used to keep Java's cacert file in sync with the Redhat's ca-bundle.crt.
+Redhat uses a multi-part PEM file (`/etc/pki/tls/certs/ca-bundle.crt`). Keyutil can be used to keep Java's cacert file in sync with the Redhat's ca-bundle.crt.
 
 Ubuntu uses a directory containing single PEM files. Keyutil can merge all of these into a single JKS file, such as a cacerts files.
 
