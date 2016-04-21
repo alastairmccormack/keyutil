@@ -5,18 +5,29 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.UnrecoverableEntryException;
+import java.security.KeyStore.Entry;
+import java.security.KeyStore.PrivateKeyEntry;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.logging.Logger;
 import javax.security.auth.x500.X500Principal;
 import org.apache.commons.codec.binary.Base64;
+
+import uk.co.mccnet.keyutil.PEMBlock.Type;
 
 
 /**
@@ -27,8 +38,9 @@ import org.apache.commons.codec.binary.Base64;
  */
 
 public class JKSKeyStoreUtil {
-	File file;
-	KeyStore keyStore;
+	private File file;
+	private KeyStore keyStore;
+	private String password; 
 	
 	private static Logger logger = Logger.getLogger(Main.class.getName());
 	
@@ -72,6 +84,9 @@ public class JKSKeyStoreUtil {
 		FileInputStream fis = new FileInputStream(file);
 		keyStore.load(fis, password.toCharArray());
 		fis.close();
+		
+		// Used for encrypting/decrypting KeyStore and new key entries
+		this.password = password;
 	}
 	
 	/**
@@ -102,17 +117,17 @@ public class JKSKeyStoreUtil {
 	 * @throws JKSKeyStoreUtilException
 	 * @throws IOException
 	 */
-	public void importPEM(String pem) throws JKSKeyStoreUtilException, IOException {
-		if (! Base64.isBase64(pem) ) {
-			throw new JKSKeyStoreUtilException("PEM File does not contain valid Base64 data");
+	public void importPEM(PEMBlock pemBlock) throws JKSKeyStoreUtilException, IOException {
+		
+		if (! pemBlock.isCert() ) {
+			throw new JKSKeyStoreUtilException("PEM is not a certificate");
 		}
 		
-		byte[] der = Base64.decodeBase64(pem);
+		PEMCertBlock pemCertBlock = (PEMCertBlock) pemBlock;
+		
+		X509Certificate cert;
 		try {
-			ByteArrayInputStream bais = new ByteArrayInputStream(der);
-			CertificateFactory cf = CertificateFactory.getInstance("X.509");
-			X509Certificate cert = (X509Certificate) cf.generateCertificate(bais); 
-			
+			cert = pemCertBlock.getCert();
 			String alias = getCertAlias(cert);
 			
 			if (alias == null) {
@@ -123,11 +138,132 @@ public class JKSKeyStoreUtil {
 				logger.fine("Adding Cert with alias: " + alias);
 				keyStore.setCertificateEntry(alias, cert);
 			}
-		} catch (Exception e) {
+		
+		} catch (PEMBlockException e) {
+			throw new JKSKeyStoreUtilException(e);
+		} catch (KeyStoreException e) {
+			throw new JKSKeyStoreUtilException(e);
+		}
+
+	}
+	
+	protected void importKey(PEMKeyBlock pemKeyBlock, PEMCertBlock pemCertBlock, 
+			String alias, String password) throws JKSKeyStoreUtilException {
+		
+		try {
+			PrivateKey privateKey = pemKeyBlock.getKey(password);
+			X509Certificate[] cert = new X509Certificate[1];
+			cert[0] = pemCertBlock.getCert();
+			
+			keyStore.setKeyEntry(alias, privateKey.getEncoded(), cert);
+
+		} catch (PEMBlockException e) {
+			throw new JKSKeyStoreUtilException(e);
+		} catch (KeyStoreException e) {
+			throw new JKSKeyStoreUtilException(e);
+		}		
+	}
+	
+	
+	/**
+	 * @param pemFile imports a whole {@link PEMFileException} object
+	 * @throws JKSKeyStoreUtilException
+	 * @throws IOException
+	 * @throws PEMFileException 
+	 */
+	public void importPEMFile(PEMFile pemFile) throws JKSKeyStoreUtilException, PEMFileException, IOException {
+		
+		Iterator<PEMBlock> pemBlocks = pemFile.getPEMBlocks();
+		
+		while (pemBlocks.hasNext()) {
+			PEMBlock pemBlock = pemBlocks.next();
+			if (pemBlock.isCert()) {
+				importPEM(pemBlocks.next());		
+			}
+		}
+	}
+	
+	public PrivateKey getKey(String alias) throws JKSKeyStoreUtilException {
+		KeyStore.PasswordProtection keyStorePasswordProtection = 
+				new KeyStore.PasswordProtection(password.toCharArray());
+		
+		try {
+			PrivateKeyEntry keyEntry = (PrivateKeyEntry) keyStore.getEntry(alias,
+					keyStorePasswordProtection);
+			return keyEntry.getPrivateKey();
+		} catch (NoSuchAlgorithmException e) {
+			throw new JKSKeyStoreUtilException(e);
+		} catch (UnrecoverableEntryException e) {
+			throw new JKSKeyStoreUtilException(e);
+		} catch (KeyStoreException e) {
 			throw new JKSKeyStoreUtilException(e);
 		}
 	}
 	
+	public PEMFile getPemFile() throws JKSKeyStoreUtilException {
+		PEMFile pemFile = new PEMFile();
+		Enumeration<String> aliases;
+		try {
+			aliases = keyStore.aliases();
+		} catch (KeyStoreException e) {
+			throw new JKSKeyStoreUtilException(e);
+		}
+		
+		KeyStore.PasswordProtection keyStorePasswordProtection = 
+				new KeyStore.PasswordProtection(password.toCharArray());
+
+		while (aliases.hasMoreElements()) {
+			String alias = aliases.nextElement(); 
+			
+			Entry entry = null;			
+			
+			try {
+				
+				if (keyStore.isCertificateEntry(alias)) {
+					X509Certificate certificate = (X509Certificate) keyStore.getCertificate(alias);
+					PEMCertBlock pemCertBlock = PEMCertBlock.fromCert(certificate, false);
+					
+					pemFile.addPem(pemCertBlock);
+					
+				} else if (keyStore.isKeyEntry(alias)) {					
+					
+					PrivateKey pk = (PrivateKey) keyStore.getKey(alias, password.toCharArray());
+					
+					PEMKeyBlock pemKeyBlock = PEMKeyBlock.fromPrivateKey(pk);
+					pemFile.addPem(pemKeyBlock);
+					
+					Certificate[] certs = keyStore.getCertificateChain(alias);
+					
+					for (Certificate certificate : certs) {
+						byte[] der = certificate.getEncoded();
+						PEMBlock pemBlock = new PEMBlock(der, Type.CERT);
+						pemFile.addPem(pemBlock);
+					}
+					
+				} else {
+					logger.warning(String.format("Alias '%s' not key or certificate", alias));
+				}
+				
+				
+				
+			} catch (NoSuchAlgorithmException e) {
+				throw new JKSKeyStoreUtilException(e);
+			} catch (UnrecoverableEntryException e) {
+				throw new JKSKeyStoreUtilException(e);
+			} catch (KeyStoreException e) {
+				throw new JKSKeyStoreUtilException(e);
+			} catch (PEMBlockException e) {
+				throw new JKSKeyStoreUtilException(e);
+			} catch (CertificateEncodingException e) {
+				throw new JKSKeyStoreUtilException(e);
+			}
+			
+			
+			
+		}
+		
+		return pemFile;
+	}
 	
 	/**
 	 * @param alias						string to check for
@@ -184,19 +320,6 @@ public class JKSKeyStoreUtil {
 		return null;
 				
 	}*/
-	
-	/**
-	 * @param pemFile						imports a whole {@linkplain PEMFile} object
-	 * @throws JKSKeyStoreUtilException
-	 * @throws IOException
-	 */
-	public void importPEMFile(PEMFile pemFile) throws JKSKeyStoreUtilException, IOException {
-		ArrayList<String> pems = pemFile.getPEMBlocks();
-		
-		for (String pemString : pems) {
-			importPEM(pemString);
-		}
-	}
 	
 	/**
 	 * Imports certs and keys from a JKSKeyStoreUtil entries into this instance
